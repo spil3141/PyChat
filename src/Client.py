@@ -9,7 +9,7 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 import socket
-
+import threading
 
 
 
@@ -21,6 +21,7 @@ class Toplevel1:
     m_Port = 0
     
     m_ClientSocket = None
+    m_ListenThread = None
     
     
     
@@ -55,18 +56,6 @@ class Toplevel1:
         self.m_Window.configure(background="wheat")
         self.m_Window.configure(highlightbackground="wheat")
         self.m_Window.configure(highlightcolor="black")
-        
-#        #FRAME 1 
-#        self.m_Frame = tk.Frame(self.m_Window)
-#        
-#        #FRAME1 ELEMENTS
-#        self.m_TextArea = tk.Listbox(self.m_Frame, height=20, width=50)
-#        self.m_TextField = tk.Text(self.m_Frame,height=2, width=25)
-#        self.m_SendButton = ttk.Button(self.m_Frame, text="send", command=self.onBtnClick)
-#        self.m_Frame.pack()
-#        self.m_TextArea.pack(side=tk.LEFT, fill=tk.BOTH)
-#        self.m_TextField.pack(side=tk.LEFT)
-#        self.m_SendButton.pack(side=tk.RIGHT)
 
         #FRAME 1        
         self.Frame2 = tk.Frame(self.m_Window)
@@ -181,7 +170,7 @@ class Toplevel1:
         self.TLabel1.configure(text='''Nickname''')
 
         self.TLabel1_4 = ttk.Label(self.Frame1)
-        self.TLabel1_4.place(relx=0.329, rely=0.33, height=25, width=104)
+        self.TLabel1_4.place(relx=0.329, rely=0.33, height=25, width=120)
         self.TLabel1_4.configure(background="#000000")
         self.TLabel1_4.configure(foreground="#a6a6a6")
         self.TLabel1_4.configure(font="-family {휴먼엑스포} -size 14")
@@ -195,8 +184,10 @@ class Toplevel1:
         self.TLabel1_5.configure(font="-family {휴먼엑스포} -size 14")
         self.TLabel1_5.configure(relief="flat")
         self.TLabel1_5.configure(text='''Port''')
-
-
+        
+        #Starting socket listen thread
+        self.m_ListenThread = threading.Thread(target=self.listen)
+       
     def connectSocket(self,nickname,address,port):
         #SOCKET SETUP 
         try:
@@ -206,14 +197,25 @@ class Toplevel1:
             print ("Error while Connecting to Server")
         print("Connected to Server ")
         self.m_ClientSocket.sendall(bytes("/c/" + nickname,"utf-8"))
+    
+    def listen(self):
+        while(True):
+            # print(self.m_ListenThread.isAlive())
+            msg_from_server = self.m_ClientSocket.recv(1024).decode("utf-8")
+            self.console(msg_from_server)
+                
+    def console(self,msg):
+        self.Listbox1.insert(tk.END, msg)
         
+    def send(self,msg):
+        self.m_ClientSocket.sendall(bytes("/m/" + msg,"utf-8"))
         
     def switchFrames(self):
         self.Frame1.destroy()
         
     def onSentBtnClick(self,event = None):
         textfieldmsg = self.Text2.get('1.0', "end-1c") 
-        self.Listbox1.insert(tk.END, textfieldmsg)
+        # self.Listbox1.insert(tk.END, textfieldmsg)
         self.send(textfieldmsg)
         self.Text2.delete('1.0', 'end-1c') #clears
         
@@ -226,13 +228,7 @@ class Toplevel1:
         self.Text1_3.delete('1.0', 'end-1c')
         self.switchFrames()
         self.connectSocket(self.m_Nickname,self.m_Address,self.m_Port)
-        
-        
-    def send(self,msg):
-        self.m_ClientSocket.sendall(bytes("/m/" + msg,"utf-8"))
-    
-    def receive(self):
-        data = self.m_ClientSocket.recv(1024)
+        self.m_ListenThread.start()
     
     def update(self):
         self.m_Window.mainloop()
